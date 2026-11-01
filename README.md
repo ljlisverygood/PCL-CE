@@ -1,7 +1,15 @@
-**简体中文** | [English](README-EN.md) | [繁體中文](README-ZH_TW.md)
+# PCL-CE 中国大陆下载修复分支
 
 > [!IMPORTANT]
 > 本仓库为个人修复分支：已[移除中国大陆地区的 Minecraft 下载限制](FIX.md)，上游同步于 `dev@8e01513`。
+
+---
+
+## 以下是原仓库内容
+
+> 以下内容摘自上游 [PCL-Community/PCL-CE](https://github.com/PCL-Community/PCL-CE) 的 README，未作修改。
+
+**简体中文** | [English](README-EN.md) | [繁體中文](README-ZH_TW.md)
 
 <div align="center">
 
