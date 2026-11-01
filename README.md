@@ -1,5 +1,8 @@
 **简体中文** | [English](README-EN.md) | [繁體中文](README-ZH_TW.md)
 
+> [!IMPORTANT]
+> 本仓库为个人修复分支：已[移除中国大陆地区的 Minecraft 下载限制](FIX.md)，上游同步于 `dev@8e01513`。
+
 <div align="center">
 
 <img src="Plain Craft Launcher 2/Images/icon.ico" alt="Logo" width="80" height="80">
