@@ -18,8 +18,6 @@ public static partial class Modpack
     /// </summary>
     public static void ModpackInstall()
     {
-        if (!RestrictedFeaturePolicy.Check("modpack-install"))
-            return;
         var file = SystemDialogs.SelectFile(
             Lang.Text("Minecraft.Download.Modpack.FileDialog.Filter"),
             Lang.Text("Minecraft.Download.Modpack.FileDialog.Title"));
@@ -57,7 +55,6 @@ public static partial class Modpack
         string? resourceId = null,
         bool isOnlineInstall = false)
     {
-        RestrictedFeaturePolicy.ThrowIfRestricted("modpack-install");
         Common.Log($"[ModPack] 整合包安装请求：{file}");
         ZipArchive? archive = null;
         try
