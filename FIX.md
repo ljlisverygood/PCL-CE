@@ -35,6 +35,52 @@
 移除限制后，下载源仍按原有逻辑工作：默认「自动」会优先使用 BMCLAPI 镜像
 （`https://bmclapi2.bangbang93.com`）并自动回退官方源，也可以在启动器设置的下载源选项里手动选择。
 
+## 在线功能密钥（构建时注入）
+
+与上游 PCL CE 一致，微软登录与 CurseForge 的密钥在**编译期**注入：构建时设置 `PCL_WRITE_SECRET=1` 与对应的
+`PCL_*` 环境变量，由 `PCL.Core.SourceGenerators/EnvironmentInteropGenerator` 生成 `EnvironmentInterop.g.cs`，
+密钥随程序一起编译进去，运行时无需配置。
+
+本仓库已配置 GitHub Actions 自动完成该步骤：
+
+- 密钥原值只保存在仓库 **Actions Secrets**：`PCL_MS_CLIENT_ID`、`PCL_CURSEFORGE_API_KEY`；
+- 工作流 [`.github/workflows/build-cnfix.yml`](.github/workflows/build-cnfix.yml) 在构建时注入这些密钥并设置
+  `PCL_WRITE_SECRET=1`，推送 `v*` 标签时自动构建并发布 Release；
+- 工作流本身**不含密钥原值**，只用仓库 Variables 中记录的 SHA256（`PCL_MS_CLIENT_ID_SHA256`、
+  `PCL_CURSEFORGE_API_KEY_SHA256`）做构建前校验，不匹配则直接失败。
+
+### 更换密钥
+
+1. 更新 Actions Secrets：`gh secret set PCL_MS_CLIENT_ID`、`gh secret set PCL_CURSEFORGE_API_KEY`；
+2. 重新计算并更新 Variables 中的 SHA256；
+3. 重新运行 `Build (CN Fix)` 工作流，或推送一个新的 `v*` 标签发布新版本。
+
+### 本地复刻同样的构建
+
+```powershell
+$env:PCL_WRITE_SECRET='1'
+$env:PCL_MS_CLIENT_ID='<client id>'
+$env:PCL_CURSEFORGE_API_KEY='<api key>'
+$env:PCL_GITHUB_SHA=(git rev-parse HEAD)
+Remove-Item -Recurse -Force .\PCL.Core\obj\Release   # 源生成器不会感知环境变量变化，必须清理
+dotnet publish 'Plain Craft Launcher 2\Plain Craft Launcher 2.csproj' -c Release -p:Platform=x64 --no-self-contained -o .\artifact
+```
+
+> ⚠️ 这样构建出的 exe 已内嵌密钥，拿到 exe 的人都可以提取；请不要把带密钥的公开构建随意分发，
+> 否则 CurseForge API Key 可能被滥用导致限流或封禁。
+
+### 无需密钥即可使用的功能
+
+- Minecraft 下载、安装、补全、修复（BMCLAPI 镜像优先）；
+- 离线登录；
+- Modrinth 搜索与下载；
+- 外置登录（LittleSkin 等第三方 Yggdrasil 皮肤站）。
+
+### 无法自行启用的功能
+
+联机大厅 / 联机依赖上游不对外的私有服务与密钥（`LINK_SERVER_ROOT`、`NAID_CLIENT_ID/SECRET`、`LOBBY_DEFAULT_SECRET` 等），
+源码构建无法启用；如需使用请改用上游官方发布版。
+
 ## 验证
 
 ```powershell

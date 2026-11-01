@@ -1,0 +1,104 @@
+name: Build (CN Fix)
+
+# 在 CI 中按上游 PCL CE 的方式，把微软登录与 CurseForge 密钥在编译期注入程序。
+# 密钥原值仅保存在仓库 Actions Secrets 中；本工作流不含密钥原值，只用 SHA256 变量做校验。
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore:
+      - '**/*.md'
+      - '**/LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Release x64
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify secrets by SHA256
+        shell: pwsh
+        env:
+          PCL_MS_CLIENT_ID: ${{ secrets.PCL_MS_CLIENT_ID }}
+          PCL_CURSEFORGE_API_KEY: ${{ secrets.PCL_CURSEFORGE_API_KEY }}
+          EXPECTED_MS_SHA256: ${{ vars.PCL_MS_CLIENT_ID_SHA256 }}
+          EXPECTED_CF_SHA256: ${{ vars.PCL_CURSEFORGE_API_KEY_SHA256 }}
+        run: |
+          function Get-Sha256([string]$Value) {
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+            $hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)
+            return [System.BitConverter]::ToString($hash).Replace('-', '').ToLowerInvariant()
+          }
+          if (-not $env:PCL_MS_CLIENT_ID) { throw '未配置 Secret：PCL_MS_CLIENT_ID' }
+          if (-not $env:PCL_CURSEFORGE_API_KEY) { throw '未配置 Secret：PCL_CURSEFORGE_API_KEY' }
+          $msHash = Get-Sha256 $env:PCL_MS_CLIENT_ID
+          $cfHash = Get-Sha256 $env:PCL_CURSEFORGE_API_KEY
+          Write-Host "PCL_MS_CLIENT_ID SHA256: $($msHash.Substring(0, 16))..."
+          Write-Host "PCL_CURSEFORGE_API_KEY SHA256: $($cfHash.Substring(0, 16))..."
+          if ($msHash -ne $env:EXPECTED_MS_SHA256) { throw 'PCL_MS_CLIENT_ID 与 Variables 中记录的 SHA256 不一致' }
+          if ($cfHash -ne $env:EXPECTED_CF_SHA256) { throw 'PCL_CURSEFORGE_API_KEY 与 Variables 中记录的 SHA256 不一致' }
+
+      - name: Publish
+        shell: pwsh
+        env:
+          PCL_WRITE_SECRET: '1'
+          PCL_MS_CLIENT_ID: ${{ secrets.PCL_MS_CLIENT_ID }}
+          PCL_CURSEFORGE_API_KEY: ${{ secrets.PCL_CURSEFORGE_API_KEY }}
+          PCL_GITHUB_SHA: ${{ github.sha }}
+        run: |
+          dotnet publish "Plain Craft Launcher 2/Plain Craft Launcher 2.csproj" -c Release -p:Platform=x64 -p:DeleteExistingFiles=true -o ./artifact --no-self-contained
+
+      - name: Package
+        shell: pwsh
+        run: |
+          Rename-Item -Path "./artifact/Plain Craft Launcher 2.exe" -NewName "PCL2_CE_Release_x64_CNFix.exe"
+          $hash = (Get-FileHash "./artifact/PCL2_CE_Release_x64_CNFix.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  PCL2_CE_Release_x64_CNFix.exe" | Out-File -FilePath "./artifact/PCL2_CE_Release_x64_CNFix.exe.sha256.txt" -Encoding ascii
+          Write-Host "SHA256: $hash"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCL2_CE_Release_x64_CNFix
+          path: artifact/**
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PCL2_CE_Release_x64_CNFix
+          path: ./artifact
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" ./artifact/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" ./artifact/* --repo "$GITHUB_REPOSITORY" --title "PCL CE $TAG" --generate-notes
+          fi
