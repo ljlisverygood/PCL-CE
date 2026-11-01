@@ -41,6 +41,9 @@
 `PCL_*` 环境变量，由 `PCL.Core.SourceGenerators/EnvironmentInteropGenerator` 生成 `EnvironmentInterop.g.cs`，
 密钥随程序一起编译进去，运行时无需配置。
 
+注：注入 Client ID 只是第一步，Minecraft 服务还要求该应用通过 Mojang 的 **AppID 审核**，详见下方
+[「微软正版登录需要 Minecraft AppID 审核」](#-微软正版登录需要-minecraft-appid-审核)。
+
 本仓库已配置 GitHub Actions 自动完成该步骤：
 
 - 密钥原值只保存在仓库 **Actions Secrets**：`PCL_MS_CLIENT_ID`、`PCL_CURSEFORGE_API_KEY`；
@@ -80,6 +83,42 @@ dotnet publish 'Plain Craft Launcher 2\Plain Craft Launcher 2.csproj' -c Release
 
 联机大厅 / 联机依赖上游不对外的私有服务与密钥（`LINK_SERVER_ROOT`、`NAID_CLIENT_ID/SECRET`、`LOBBY_DEFAULT_SECRET` 等），
 源码构建无法启用；如需使用请改用上游官方发布版。
+
+## ⚠️ 微软正版登录需要 Minecraft AppID 审核
+
+Microsoft OAuth、Xbox Live、XSTS 这三步用任意 Entra 应用都能成功，但
+`POST https://api.minecraftservices.com/authentication/login_with_xbox` 会检查 **应用白名单**：
+
+- 未通过 Mojang 审核的新 Entra 应用会返回 `HTTP 403`，响应体为：
+
+  ```json
+  {
+    "path" : "/authentication/login_with_xbox",
+    "errorMessage" : "Invalid app registration, see https://aka.ms/AppRegInfo for more information"
+  }
+  ```
+
+- 这与本仓库的构建、密钥注入无关，任何自建应用都会一样；上游官方 PCL CE 使用的是**已通过审核**的 Client ID。
+
+### 申请方式
+
+1. 打开 Minecraft Java Edition 的 **App ID 审核表单**：<https://aka.ms/mce-reviewappid>；
+2. 填写：
+   - **Client ID**：本仓库当前使用的 Client ID（见 Actions Secret `PCL_MS_CLIENT_ID`，或 Entra 应用概览页）；
+   - **应用名称 / 项目地址**：<https://github.com/ljlisverygood/PCL-CE>；
+   - **用途说明**：开源 Minecraft Java 启动器分支，用于修复中国大陆地区的下载限制；
+3. 审核周期通常为**数天到数周**；通过后**同一个 Client ID** 即可通过校验，无需重新构建、也无需更新 Secret；
+4. 审核通过前，正版登录会在 Minecraft Services 步骤失败；下载、离线登录、外置登录、Modrinth、CurseForge 不受影响。
+
+> ⚠️ 不要复用其他启动器（包括官方 PCL CE、官方 Minecraft 启动器）的 Client ID：这属于冒用他人应用标识，
+> 被发现可能导致原应用被 Mojang 封锁。
+
+### 等待审核期间的替代方案
+
+- 本仓库构建负责：Minecraft 下载 / 安装 / 补全 / 修复；
+- 用上游官方 PCL CE（自带已审核 Client ID）负责：微软正版登录 + 启动游戏；两者共用同一个 `.minecraft` 目录即可，
+  官方版在游戏文件齐全时允许启动（其区域限制只拦截下载 / 补全 / 整合包安装）；
+- 或者直接使用离线登录 / 外置登录。
 
 ## 验证
 
