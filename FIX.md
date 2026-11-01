@@ -35,52 +35,6 @@
 移除限制后，下载源仍按原有逻辑工作：默认「自动」会优先使用 BMCLAPI 镜像
 （`https://bmclapi2.bangbang93.com`）并自动回退官方源，也可以在启动器设置的下载源选项里手动选择。
 
-## 在线功能（可选：Microsoft 正版登录 / CurseForge）
-
-官方发布构建会把发布密钥编译进程序，源码构建默认不包含这些密钥。为了让源码构建也能使用需要密钥的功能，
-本分支允许在**运行时**通过环境变量提供以下密钥（无需重新编译）：
-
-| 环境变量 | 用途 | 获取方式 |
-| --- | --- | --- |
-| `PCL_MS_CLIENT_ID` | Microsoft 正版登录（设备码流程） | 在 Microsoft Entra 门户注册应用，见下文 |
-| `PCL_CURSEFORGE_API_KEY` | CurseForge 搜索与 API | 在 CurseForge 开发者控制台申请，见下文 |
-
-设置后启动 PCL 即可生效，例如写一个 `启动.bat`：
-
-```bat
-@echo off
-set "PCL_MS_CLIENT_ID=你的客户端ID"
-set "PCL_CURSEFORGE_API_KEY=你的APIKey"
-start "" "PCL2_CE_Release_x64_CNFix.exe"
-```
-
-### Microsoft 正版登录的 Client ID
-
-1. 打开 [Microsoft Entra 管理中心](https://entra.microsoft.com/) → **应用注册** → **新注册**；
-2. 受支持的帐户类型选择「仅个人 Microsoft 帐户」（或「任何组织目录中的帐户和个人 Microsoft 帐户」）；
-3. 重定向 URI 留空即可（PCL 使用设备码流程，无需回调地址）；
-4. 注册完成后进入「身份验证」，把 **允许公共客户端流** 设为「是」并保存；
-5. 复制「应用程序(客户端) ID」作为 `PCL_MS_CLIENT_ID`。
-
-### CurseForge API Key
-
-1. 登录 [CurseForge 开发者控制台](https://console.curseforge.com/) 申请 API Key（Game 选择 Minecraft）；
-2. 通过审核后复制密钥作为 `PCL_CURSEFORGE_API_KEY`。
-
-> ⚠️ 不要把密钥写进公开仓库或公开构建中分发。CurseForge API Key 按开发者授权，泄露可能导致被封禁。
-
-### 无需密钥即可使用的功能
-
-- Minecraft 下载、安装、补全、修复（BMCLAPI 镜像优先）；
-- 离线登录；
-- Modrinth 搜索与下载；
-- 外置登录（LittleSkin 等第三方 Yggdrasil 皮肤站）。
-
-### 无法自行启用的功能
-
-联机大厅 / 联机功能依赖上游不对外的私有服务与密钥（`LINK_SERVER_ROOT`、`NAID_CLIENT_ID/SECRET`、`LOBBY_DEFAULT_SECRET` 等），
-源码构建无法启用；如需使用请改用上游官方发布版。
-
 ## 验证
 
 ```powershell
